@@ -1,21 +1,23 @@
 import { NextResponse } from "next/server"
 import { getAuthUser } from "@/lib/server/auth"
-import { findUploadedFile, isGroupMember } from "@/lib/server/auth-db"
 import { fetchBlobBytes } from "@/lib/server/blob"
 import path from "path"
 
 export const dynamic = "force-dynamic"
 
 const CONTENT_TYPES: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".txt": "text/plain; charset=utf-8",
-  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
 }
 
 /**
- * Serves uploaded chapter attachments. Membership-gated: the requester must
- * belong to the group owning the chapter the file is attached to. PDFs and
- * text preview inline in a new tab; docx downloads (no inline preview).
+ * Serves avatar images from Vercel Blob. Auth required, but — unlike
+ * chapter attachments — NOT group-gated: avatars appear on public
+ * profiles and every shared surface, so any signed-in user may load
+ * them. File names are unguessable (avatar_<timestamp>_<random hex>)
+ * and strictly validated.
  */
 export async function GET(
   _request: Request,
@@ -28,34 +30,30 @@ export async function GET(
     }
 
     const { name } = await params
-    if (!name || !/^[A-Za-z0-9._-]+$/.test(name) || name.includes("..")) {
-      return NextResponse.json({ ok: false, error: "Invalid file reference." }, { status: 400 })
-    }
-
-    const record = await findUploadedFile(name)
-    if (!record || !(await isGroupMember(user.id, record.groupId))) {
+    if (!name || !/^avatar_[A-Za-z0-9._-]+\.(png|jpe?g|webp)$/.test(name) || name.includes("..")) {
       return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 })
     }
 
-    const ext = path.extname(name).toLowerCase()
     let buffer: Buffer
     try {
       buffer = await fetchBlobBytes(name)
     } catch {
       return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 })
     }
+
+    const ext = path.extname(name).toLowerCase()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const body = new Uint8Array(buffer) as any
     return new NextResponse(body, {
       status: 200,
       headers: {
         "Content-Type": CONTENT_TYPES[ext] ?? "application/octet-stream",
-        "Content-Disposition": `inline; filename="${record.name.replace(/"/g, "")}"`,
+        "Cache-Control": "public, max-age=86400, immutable",
         "Content-Length": String(buffer.length),
       },
     })
   } catch (error) {
-    console.error("Serve file error:", error)
+    console.error("Serve avatar error:", error)
     return NextResponse.json(
       { ok: false, error: "Failed to serve file." },
       { status: 500 }

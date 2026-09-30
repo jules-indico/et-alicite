@@ -1,7 +1,7 @@
 import crypto from "crypto"
 import { eq, and, desc, inArray } from "drizzle-orm"
 import { db } from "./db"
-import { deleteBlob, isBlobUrl } from "./blob"
+import { deleteBlob } from "./blob"
 import * as T from "./schema"
 import { ROLE_VALUES } from "@/lib/roles"
 import { splitName, fullNameOf } from "@/lib/names"
@@ -671,8 +671,7 @@ export async function setUserAvatar(
   const user = await findUserById(userId)
   if (!user) return { ok: false, error: "User not found.", status: 404 }
   if (avatarUrl !== null) {
-    const legacy = /^\/api\/avatars\/avatar_[A-Za-z0-9._-]+\.(png|jpe?g|webp)$/.test(avatarUrl)
-    if (!legacy && !isBlobUrl(avatarUrl)) {
+    if (!/^\/api\/avatars\/avatar_[A-Za-z0-9._-]+\.(png|jpe?g|webp)$/.test(avatarUrl)) {
       return { ok: false, error: "Invalid avatar reference.", status: 400 }
     }
   }
@@ -682,8 +681,11 @@ export async function setUserAvatar(
     .set({ avatarUrl: avatarUrl || null })
     .where(eq(T.users.id, userId))
   // Best-effort cleanup of the replaced Blob (never fails the update).
-  if (previous && previous !== avatarUrl && isBlobUrl(previous)) {
-    await deleteBlob(previous)
+  if (previous && previous !== avatarUrl) {
+    const name = previous.split("/").pop() ?? ""
+    if (/^avatar_[A-Za-z0-9._-]+\.(png|jpe?g|webp)$/.test(name)) {
+      await deleteBlob(name)
+    }
   }
   const updated = await findUserById(userId)
   if (!updated) return { ok: false, error: "User not found.", status: 404 }
@@ -1544,6 +1546,7 @@ export async function deleteResearchGroup(
   for (const f of removedFiles) {
     const row = cleanRow(f) as unknown as DbFile
     if (row.blobUrl) await deleteBlob(row.blobUrl)
+    else if (row.storedName) await deleteBlob(row.storedName)
   }
 
   // Reassign activeGroupId for any user whose active group was this deleted group
@@ -3013,6 +3016,7 @@ export async function deleteGroupFolder(
     .where(and(eq(T.folders.id, folderId), eq(T.folders.groupId, groupId)))
   for (const f of removed) {
     if (f.blobUrl) await deleteBlob(f.blobUrl)
+    else await deleteBlob(f.storedName)
   }
   await logGroupActivity(userId, groupId, {
     action: "deleted folder",
@@ -3134,8 +3138,8 @@ export type ResearchFileMeta = {
   size: number
   mimeType: string
   storedName: string
-  /** Vercel Blob URL for the uploaded bytes. */
-  blobUrl: string
+  /** Blob pathname for the uploaded bytes (equals storedName). */
+  blobUrl?: string
 }
 
 export async function registerResearchFiles(
@@ -3286,6 +3290,7 @@ export async function deleteResearchFile(
     .delete(T.files)
     .where(and(eq(T.files.id, fileId), eq(T.files.groupId, groupId)))
   if (file.blobUrl) await deleteBlob(file.blobUrl)
+  else await deleteBlob(file.storedName)
   await logGroupActivity(userId, groupId, {
     action: "deleted file",
     target: file.name,

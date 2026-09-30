@@ -66,10 +66,10 @@ export async function POST(request: Request) {
 
     // 2. Uploaded file → embedded metadata (DOI → full record, else fields).
     const attached = (source.files ?? []).find((f) => f.storedName)
-    if (attached?.storedName && attached.blobUrl) {
+    if (attached?.storedName) {
       let buffer: Buffer | null = null
       try {
-        buffer = await fetchBlobBytes(attached.blobUrl)
+        buffer = await fetchBlobBytes(attached.storedName)
       } catch {
         buffer = null
       }

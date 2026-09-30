@@ -1,43 +1,39 @@
-import { put, del } from "@vercel/blob"
+import { del, head } from "@vercel/blob"
 
 /**
  * Vercel Blob storage for all uploaded bytes (avatars, attachments,
- * research files). Filenames stay unguessable (`avatar_` /
- * `research_` + timestamp + random hex); callers keep using the existing
- * /api/... URL shapes, which now proxy Blob bytes after their usual
- * membership checks.
+ * research files). The store is private, so:
+ * - uploads go client-direct via `upload()` + the /api/blob-upload token
+ *   route (which validates auth, type, size, quota, and access first);
+ * - reads go through the existing /api/... serving routes, which enforce
+ *   the usual membership checks and then stream bytes from a signed URL.
+ *
+ * Pathnames stay unguessable (`avatar_` / `<timestamp>_<hex>` /
+ * `research_` + timestamp + random hex); clients keep using the existing
+ * /api/files|avatars|research-files URL shapes, which now proxy Blob
+ * bytes instead of local disk.
  */
 
-export function isBlobUrl(url: string): boolean {
-  return /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//.test(url)
-}
-
-/** Store bytes under an exact pathname (no random suffix — names are already unique). */
-export async function putBlob(
-  pathname: string,
-  body: Buffer | Uint8Array | Blob,
-  contentType: string
-): Promise<{ url: string; pathname: string }> {
-  const blob = await put(pathname, body as Blob, {
-    access: "public",
-    contentType,
-    addRandomSuffix: false,
-  })
-  return { url: blob.url, pathname: blob.pathname }
-}
-
-/** Best-effort delete that never throws (cleanup paths must not fail writes). */
-export async function deleteBlob(urlOrPathname: string): Promise<void> {
+/** Best-effort delete by pathname that never throws (cleanup paths must not fail writes). */
+export async function deleteBlob(pathname: string): Promise<void> {
   try {
-    await del(urlOrPathname)
+    await del(pathname)
   } catch {
     // Ignore cleanup failures.
   }
 }
 
-/** Fetch stored bytes back for proxied serving / zip / text extraction. */
-export async function fetchBlobBytes(url: string): Promise<Buffer> {
-  const res = await fetch(url)
+/** Fetch stored bytes for proxied serving / zip / text extraction. */
+export async function fetchBlobBytes(pathname: string): Promise<Buffer> {
+  const meta = await head(pathname)
+  const url = meta.downloadUrl
+  if (!url) {
+    throw new Error("Blob has no download URL.")
+  }
+  // Private store: reads need the token even server-side.
+  const res = await fetch(url, {
+    headers: { authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN ?? ""}` },
+  })
   if (!res.ok) {
     throw new Error(`Blob fetch failed (${res.status}).`)
   }

@@ -45,12 +45,13 @@ export async function GET(
       return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 })
     }
 
-    if (!record.blobUrl) {
+    const ext = path.extname(name).toLowerCase()
+    let buffer: Buffer
+    try {
+      buffer = await fetchBlobBytes(name)
+    } catch {
       return NextResponse.json({ ok: false, error: "File not found." }, { status: 404 })
     }
-
-    const ext = path.extname(name).toLowerCase()
-    const buffer = await fetchBlobBytes(record.blobUrl)
     const safeName = record.name.replace(/"/g, "")
     const { searchParams } = new URL(request.url)
     const inlineType = INLINE_TYPES[ext]

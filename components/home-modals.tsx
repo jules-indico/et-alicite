@@ -20,6 +20,7 @@ import {
   Check,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { uploadToBlob } from "@/lib/blob-upload"
 import { useDismissOnOutsideClick } from "@/lib/use-dismiss"
 import { RemoveMemberDialog } from "@/components/remove-member-dialog"
 import { SOURCE_TYPES } from "@/lib/apa"
@@ -201,11 +202,25 @@ export function NewChapterModal({
   > {
     const uploaded: { name: string; size: number; url: string; storedName: string; blobUrl?: string }[] = []
     for (const file of files) {
-      const form = new FormData()
-      form.append("file", file)
+      let storedName: string
+      try {
+        ;({ storedName } = await uploadToBlob("attachment", file))
+      } catch {
+        setError(`Upload failed for "${file.name}". Please check your connection and try again.`)
+        return null
+      }
       let res: Response
       try {
-        res = await fetch("/api/uploads", { method: "POST", body: form })
+        res = await fetch("/api/uploads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: file.name,
+            size: file.size,
+            mimeType: file.type || "application/octet-stream",
+            storedName,
+          }),
+        })
       } catch {
         setError(`Upload failed for "${file.name}". Please check your connection and try again.`)
         return null
@@ -1033,11 +1048,25 @@ export function NewSourceModal({
   > {
     const uploaded: { name: string; size: number; url: string; storedName: string; blobUrl?: string }[] = []
     for (const file of attachFiles) {
-      const form = new FormData()
-      form.append("file", file)
+      let storedName: string
+      try {
+        ;({ storedName } = await uploadToBlob("attachment", file))
+      } catch {
+        setError(`Upload failed for "${file.name}". Please check your connection and try again.`)
+        return null
+      }
       let res: Response
       try {
-        res = await fetch("/api/uploads", { method: "POST", body: form })
+        res = await fetch("/api/uploads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: file.name,
+            size: file.size,
+            mimeType: file.type || "application/octet-stream",
+            storedName,
+          }),
+        })
       } catch {
         setError(`Upload failed for "${file.name}". Please check your connection and try again.`)
         return null
@@ -1798,7 +1827,7 @@ export function UploadFilesModal({
     if (error) setError(null)
   }
 
-  function handleUpload() {
+  async function handleUpload() {
     if (uploading || picked.length === 0) return
     const tooBig = picked.find((f) => f.size > Math.floor(4.5 * 1024 * 1024))
     if (tooBig) {
@@ -1808,36 +1837,40 @@ export function UploadFilesModal({
     setUploading(true)
     setProgress(0)
     setError(null)
-    const form = new FormData()
-    form.append("groupId", groupId)
-    form.append("access", access.access)
-    form.append("allowedIds", JSON.stringify(access.allowedIds))
-    for (const f of picked) form.append("file", f)
-    const xhr = new XMLHttpRequest()
-    xhr.open("POST", `/api/folders/${folderId}/files`)
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100))
-    }
-    xhr.onload = () => {
-      setUploading(false)
-      try {
-        const data = JSON.parse(xhr.responseText)
-        if (xhr.status < 200 || xhr.status >= 300 || !data.ok) {
-          setError(data.error || "Upload failed. Please try again.")
-          return
-        }
-        onUploaded(data.files ?? [])
-        resetForm()
-        onClose()
-      } catch {
-        setError("Upload failed. Please try again.")
+    try {
+      // Bytes go client-direct to Blob (one completed upload per file drives
+      // the determinate progress bar since per-byte events aren't exposed).
+      const completed: { name: string; size: number; mimeType: string; storedName: string }[] = []
+      for (const f of picked) {
+        const up = await uploadToBlob("research", f, { groupId, folderId })
+        completed.push({ name: f.name, size: f.size, mimeType: up.mimeType, storedName: up.storedName })
+        setProgress(Math.round((completed.length / picked.length) * 90))
       }
-    }
-    xhr.onerror = () => {
-      setUploading(false)
+      const res = await fetch(`/api/folders/${folderId}/files`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          groupId,
+          access: access.access,
+          allowedIds: access.allowedIds,
+          files: completed,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) {
+        // Best-effort: orphaned bytes stay in Blob (unguessable, unlisted).
+        setError(data.error || "Upload failed. Please try again.")
+        return
+      }
+      setProgress(100)
+      onUploaded(data.files ?? [])
+      resetForm()
+      onClose()
+    } catch {
       setError("Upload failed. Check your connection and try again.")
+    } finally {
+      setUploading(false)
     }
-    xhr.send(form)
   }
 
   return (

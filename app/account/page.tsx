@@ -20,6 +20,7 @@ import {
 } from "@/lib/avatar"
 import { ROLE_GROUPS, ROLE_VALUES, DEFAULT_ROLE } from "@/lib/roles"
 import { fullNameOf, splitName } from "@/lib/names"
+import { uploadToBlob } from "@/lib/blob-upload"
 import { RemoveMemberDialog } from "@/components/remove-member-dialog"
 import { useDismissOnOutsideClick } from "@/lib/use-dismiss"
 import { CollaboratorsSection } from "@/components/collaborators-section"
@@ -69,9 +70,18 @@ function AvatarUploader() {
   }, [])
 
   async function uploadBlob(blob: Blob): Promise<string> {
-    const form = new FormData()
-    form.append("file", new File([blob], "avatar.jpg", { type: "image/jpeg" }))
-    const res = await fetch("/api/avatars", { method: "POST", body: form })
+    const file = new File([blob], "avatar.jpg", { type: "image/jpeg" })
+    let storedName: string
+    try {
+      ;({ storedName } = await uploadToBlob("avatar", file))
+    } catch {
+      throw new Error("Upload failed. Please try again.")
+    }
+    const res = await fetch("/api/avatars", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ storedName, size: file.size, name: file.name }),
+    })
     const data = await res.json().catch(() => ({}))
     if (!res.ok || !data.ok || !data.file?.url) {
       throw new Error(data.error || "Upload failed. Please try again.")

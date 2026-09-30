@@ -21,6 +21,30 @@ const ROOT = path.join(__dirname, "..")
 const JSON_PATH = path.join(ROOT, "data", "auth-db.json")
 const UPLOAD_DIR = path.join(ROOT, "data", "uploads")
 
+// Plain `node` does not load .env.local (only `next` commands do), so read
+// it here. Real environment values always win over the file.
+try {
+  const envPath = path.join(ROOT, ".env.local")
+  if (fs.existsSync(envPath)) {
+    for (const line of fs.readFileSync(envPath, "utf8").split("\n")) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue
+      const idx = trimmed.indexOf("=")
+      const key = trimmed.slice(0, idx).trim()
+      let value = trimmed.slice(idx + 1).trim()
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1)
+      }
+      if (key && !(key in process.env)) process.env[key] = value
+    }
+  }
+} catch {
+  // Missing/unreadable .env.local just means env must come from elsewhere.
+}
+
 const sql = neon(process.env.DATABASE_URL ?? "")
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is not set. Add it to .env.local first.");
@@ -214,20 +238,23 @@ async function uploadLocalFile(storedName, subdir) {
     console.log(`  skip missing bytes: ${storedName}`);
     return null
   }
+  // Server-side `put()` with access "public" is rejected on this private
+  // store; access "private" uploads the same bytes under the same pathname.
   const ext = path.extname(storedName).toLowerCase()
   const body = fs.readFileSync(filePath)
-  const blob = await put(`${subdir}/${storedName}`, body, {
-    access: "public",
+  await put(storedName, body, {
+    access: "private",
     contentType: CONTENT_TYPES[ext] ?? "application/octet-stream",
     addRandomSuffix: false,
+    allowOverwrite: true,
   })
-  return blob.url
+  return true
 }
 
 async function main() {
   console.log("creating tables…");
   for (const stmt of DDL.split(";").map((s) => s.trim()).filter(Boolean)) {
-    await sql(stmt)
+    await sql.query(stmt)
   }
   if (!fs.existsSync(JSON_PATH)) {
     console.log("no data/auth-db.json found — tables created, nothing to import.");
@@ -238,31 +265,36 @@ async function main() {
 
   const insert = async (table, row) => {
     const cols = Object.keys(row)
-    // Raw values: the Neon driver serializes objects/arrays into JSONB itself.
-    const vals = Object.values(row)
+    // Raw sql.query does NOT serialize objects (drizzle does that for the
+    // app) — stringify JSONB values explicitly; plain strings stay as-is.
+    const vals = Object.values(row).map((v) =>
+      typeof v === "object" && v !== null ? JSON.stringify(v) : v
+    )
     // drizzle-free raw insert with ON CONFLICT DO NOTHING (idempotent)
     const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ")
-    await sql(
-      `INSERT INTO ${table} (${cols.join(", ")}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`,
-      vals
-    )
+    try {
+      await sql.query(
+        `INSERT INTO ${table} (${cols.join(", ")}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`,
+        vals
+      )
+    } catch (e) {
+      console.error(`insert into ${table} failed. row keys: ${cols.join(",")}`);
+      throw e
+    }
   }
-  // users (avatar bytes → Blob, avatarUrl rewritten to the Blob URL)
+  // users (avatar bytes → Blob; avatarUrl values stay /api/avatars/…
+  // URLs, which now proxy Blob bytes instead of local disk)
   for (const u of db.users || []) {
-    let avatarUrl = u.avatarUrl ?? null
-    if (typeof avatarUrl === "string" && avatarUrl.startsWith("/api/avatars/")) {
-      const name = avatarUrl.split("/").pop()
-      const url = await uploadLocalFile(name, "avatars")
-      if (url) {
-        avatarUrl = url
-        console.log(`  avatar ${u.email} → Blob`);
-      }
+    if (typeof u.avatarUrl === "string" && u.avatarUrl.startsWith("/api/avatars/")) {
+      const name = u.avatarUrl.split("/").pop()
+      const ok = await uploadLocalFile(name, "avatars")
+      if (ok) console.log(`  avatar ${u.email} → Blob`);
     }
     await insert("users", {
       id: u.id, email: u.email, password_hash: u.passwordHash, salt: u.salt,
       name: u.name, display_name: u.displayName, username: u.username,
       initials: u.initials, color: u.color, role: u.role,
-      avatar_url: avatarUrl, bio: u.bio ?? null,
+      avatar_url: u.avatarUrl ?? null, bio: u.bio ?? null,
       show_connections: u.showConnections ?? null, show_groups: u.showGroups ?? null,
       first_name: u.firstName ?? null, last_name: u.lastName ?? null,
       preferences: u.preferences ?? null, active_group_id: u.activeGroupId ?? null,
@@ -302,18 +334,16 @@ async function main() {
   }
   counts.joinRequests = (db.joinRequests || []).length
 
-  // chapter + source inline attachments: upload bytes, add blobUrl to each entry
+  // chapter + source inline attachments: upload bytes (records keep
+  // their storedName, which the serving routes resolve via Blob)
   const migrateFiles = async (files, subdir) => {
     if (!Array.isArray(files)) return files ?? null
-    const out = []
     for (const f of files) {
-      let blobUrl = f.blobUrl ?? null
-      if (!blobUrl && f.storedName) {
-        blobUrl = await uploadLocalFile(f.storedName, subdir)
+      if (f.storedName && !f.blobUrl) {
+        await uploadLocalFile(f.storedName, subdir)
       }
-      out.push({ ...f, blobUrl })
     }
-    return out
+    return files
   }
 
   for (const c of db.chapters || []) {
@@ -364,15 +394,14 @@ async function main() {
   counts.folders = (db.folders || []).length
 
   for (const f of db.files || []) {
-    let blobUrl = f.blobUrl ?? null
-    if (!blobUrl && f.storedName) {
-      blobUrl = await uploadLocalFile(f.storedName, "research")
-      if (blobUrl) console.log(`  research file ${f.name} → Blob`);
+    if (f.storedName) {
+      const ok = await uploadLocalFile(f.storedName, "research")
+      if (ok) console.log(`  research file ${f.name} → Blob`);
     }
     await insert("files", {
       id: f.id, group_id: f.groupId, folder_id: f.folderId, name: f.name,
       size: f.size, mime_type: f.mimeType, stored_name: f.storedName,
-      blob_url: blobUrl, uploaded_by: f.uploadedBy, created_at: f.createdAt,
+      blob_url: f.blobUrl ?? null, uploaded_by: f.uploadedBy, created_at: f.createdAt,
       access: f.access ?? null, allowed_ids: f.allowedIds ?? null,
     })
   }

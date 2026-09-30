@@ -21,6 +21,7 @@ import {
   type ApaInputs,
 } from "@/lib/apa"
 import { cn } from "@/lib/utils"
+import { uploadToBlob } from "@/lib/blob-upload"
 import { ArrowLeft, BookMarked, Check, Copy, FileText, Link2, Loader2, Paperclip, Quote, Sparkles, Upload, X } from "lucide-react"
 import { RemoveMemberDialog } from "@/components/remove-member-dialog"
 
@@ -251,11 +252,25 @@ export default function SourceDetailPage() {
   > {
     const uploaded: { name: string; size: number; url: string; storedName: string; blobUrl?: string }[] = []
     for (const file of manageFiles) {
-      const form = new FormData()
-      form.append("file", file)
+      let storedName: string
+      try {
+        ;({ storedName } = await uploadToBlob("attachment", file))
+      } catch {
+        setManageError(`Upload failed for "${file.name}". Check your connection and try again.`)
+        return null
+      }
       let res: Response
       try {
-        res = await fetch("/api/uploads", { method: "POST", body: form })
+        res = await fetch("/api/uploads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: file.name,
+            size: file.size,
+            mimeType: file.type || "application/octet-stream",
+            storedName,
+          }),
+        })
       } catch {
         setManageError(`Upload failed for "${file.name}". Check your connection and try again.`)
         return null

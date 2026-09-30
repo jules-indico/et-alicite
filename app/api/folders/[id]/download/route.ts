@@ -62,10 +62,9 @@ export async function GET(
     const zip = new JSZip()
     const seen = new Set<string>()
     for (const file of files) {
-      if (!file.blobUrl) continue
       let bytes: Buffer
       try {
-        bytes = await fetchBlobBytes(file.blobUrl)
+        bytes = await fetchBlobBytes(file.storedName)
       } catch {
         continue
       }
