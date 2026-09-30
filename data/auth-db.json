@@ -1,0 +1,423 @@
+{
+  "users": [
+    {
+      "id": "user_1790698420929_20ac4070",
+      "name": "Jules Indico",
+      "displayName": "Jules Indico",
+      "firstName": "Jules",
+      "lastName": "Indico",
+      "username": "elyjulesindico6",
+      "email": "elyjulesindico6@gmail.com",
+      "passwordHash": "cbc83d22789d82d1ddcae21be79ddac06f4273acd465b28a3ac002e70a698e4abd8f232b95c1c9fa87b720073ef2d0af158349150a5c389833371ac16ae592b7",
+      "salt": "fb47a0493324b022847b55983fc98632",
+      "initials": "JI",
+      "color": "bg-[oklch(0.72_0.09_290)]",
+      "role": "Professional Procrastinator",
+      "activeGroupId": "grp_1790698716830_addf1a9a",
+      "createdAt": "2026-09-29T16:13:40.929Z",
+      "avatarUrl": "/api/avatars/avatar_1790698486696_d2077663c8ffeb0a.jpg",
+      "showConnections": true,
+      "showGroups": true,
+      "bio": "pero nhay, aminin mo...",
+      "preferences": {
+        "views": {
+          "folders": "list",
+          "chapters": "list"
+        },
+        "sorts": {
+          "folders": {
+            "key": "size",
+            "dir": "desc"
+          },
+          "chapters": {
+            "key": "updated",
+            "dir": "desc"
+          },
+          "tasks": {
+            "key": "name",
+            "dir": "desc"
+          }
+        }
+      }
+    }
+  ],
+  "sessions": [
+    {
+      "token": "6184bfacd71219eae807529a1d34a82dacd2eb7cdc2e2e6d1667f9ff91054426",
+      "userId": "user_1790699323881_a361d5e4",
+      "expiresAt": 1793291323893,
+      "createdAt": "2026-09-29T16:28:43.893Z"
+    },
+    {
+      "token": "492b87e6ebcf6ea2ae228e54bb6b3824ac8dc12586526daa3e9b32b1d7a5d8df",
+      "userId": "user_1790699816642_6c51acae",
+      "expiresAt": 1793291816653,
+      "createdAt": "2026-09-29T16:36:56.654Z"
+    },
+    {
+      "token": "705d48d59f8b0875d8f1fba1c264c303b227a6a17dcd94730c310d26dad389f7",
+      "userId": "user_1790700018854_f0b4f0b6",
+      "expiresAt": 1793292018879,
+      "createdAt": "2026-09-29T16:40:18.880Z"
+    },
+    {
+      "token": "8ce52434157466dfd0ac2aa617e8918e4502033cd572998fd3bf6d2b0c8db296",
+      "userId": "user_1790700406085_ae35c627",
+      "expiresAt": 1793292406100,
+      "createdAt": "2026-09-29T16:46:46.101Z"
+    },
+    {
+      "token": "479a32d15ccb8d79bf23a2c3e2085009ff76a40dc2e425bcbcbe629b7040c63f",
+      "userId": "user_1790701114621_94650fd8",
+      "expiresAt": 1793293114639,
+      "createdAt": "2026-09-29T16:58:34.639Z"
+    },
+    {
+      "token": "ff0943ff577ade699b599bede689ec5eabf38b097945bba91d7ef107c052dd7b",
+      "userId": "user_1790702100029_70ac0940",
+      "expiresAt": 1793294100044,
+      "createdAt": "2026-09-29T17:15:00.047Z"
+    },
+    {
+      "token": "06dabf0843b369bdfe89996624d053eeae2f31e523f903d288d01bc69fdbdebb",
+      "userId": "user_1790698420929_20ac4070",
+      "expiresAt": 1793294319497,
+      "createdAt": "2026-09-29T17:18:39.497Z"
+    }
+  ],
+  "connections": [],
+  "groups": [
+    {
+      "id": "grp_1790698716830_addf1a9a",
+      "name": "Group 5: Research in Daily Life 2",
+      "description": "The researchers will find out if the AI powered web-based application Assistant Organizer really does help users work faster and end up with academic papers that are better structured.",
+      "researchTitle": "et-alicite: Web-Based Application AI Assistant Organizer designed in supporting and developing efficient Research Papers",
+      "ownerId": "user_1790698420929_20ac4070",
+      "leader": "user_1790698420929_20ac4070",
+      "members": [
+        {
+          "userId": "user_1790698420929_20ac4070",
+          "role": "owner",
+          "joinedAt": "2026-09-29T16:18:36.830Z"
+        }
+      ],
+      "createdAt": "2026-09-29T16:18:36.830Z",
+      "updatedAt": "2026-09-29T16:20:30.799Z",
+      "inviteToken": "46a6f02175ad8416d49dc5a560e151ec",
+      "inviteEnabled": false
+    }
+  ],
+  "joinRequests": [],
+  "chapters": [
+    {
+      "id": "ch_1790698932961_2c3ef541",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "label": "Chapter",
+      "title": "Chapter 1",
+      "status": "In progress",
+      "progress": 0,
+      "sectionsComplete": 0,
+      "sectionsTotal": 0,
+      "sources": 0,
+      "assigned": [],
+      "updated": "Just now",
+      "iconName": "FileText",
+      "attachmentUrl": "https://docs.google.com/document/d/1MPeK1GkLxhnXf6qkRIUwWnyqjxKOBFUG/edit?usp=sharing&ouid=111520206025920904708&rtpof=true&sd=true",
+      "createdBy": "user_1790698420929_20ac4070",
+      "createdAt": "2026-09-29T16:22:12.961Z",
+      "updatedAt": "2026-09-29T16:22:12.961Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task_1790699145143_ffe56a69",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "title": "Write introduction.",
+      "chapter": "Chapter 1",
+      "chapterId": "ch_1790698932961_2c3ef541",
+      "status": "In progress",
+      "assignee": "user_1790698420929_20ac4070",
+      "dueDate": "2026-10-12",
+      "description": "In chapter 1, write the Introduction part.",
+      "createdBy": "user_1790698420929_20ac4070",
+      "createdAt": "2026-09-29T16:25:45.143Z",
+      "updatedAt": "2026-09-29T16:27:56.561Z"
+    }
+  ],
+  "sources": [
+    {
+      "id": "src_1790699007474_1e7fb7e0",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "title": "Stress Among Research Scholars: Causes, Coping Strategies and Implications for Policy Reform",
+      "author": "Kumar et al.",
+      "year": 2025,
+      "tags": [],
+      "usedIn": [],
+      "cited": true,
+      "url": "https://doi.org/10.1177/09727531251315236",
+      "chapterIds": [
+        "ch_1790698932961_2c3ef541"
+      ],
+      "attachmentUrl": "https://doi.org/10.1177/09727531251315236",
+      "sourceType": "journal-article",
+      "createdBy": "user_1790698420929_20ac4070",
+      "createdAt": "2026-09-29T16:23:27.474Z",
+      "updatedAt": "2026-09-29T16:27:39.382Z",
+      "apaCitation": "Kumar, S., Singh, G., Kumar, A., &amp; Giri, S. K. (2025). Stress among research scholars: Causes, coping strategies and implications for policy reform. Annals of Neurosciences, 33(1), 123–130. https://doi.org/10.1177/09727531251315236",
+      "apaInputs": {
+        "title": "Stress Among Research Scholars: Causes, Coping Strategies and Implications for Policy Reform",
+        "author": "Kumar et al.",
+        "year": 2025,
+        "sourceType": "journal-article"
+      }
+    }
+  ],
+  "folders": [
+    {
+      "id": "folder_1790698877108_2f717eb2",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "name": "Research Documents",
+      "createdBy": "user_1790698420929_20ac4070",
+      "access": "everyone",
+      "allowedIds": [],
+      "createdAt": "2026-09-29T16:21:17.108Z",
+      "updatedAt": "2026-09-29T16:21:34.492Z"
+    },
+    {
+      "id": "folder_1790699245282_b0264c6d",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "name": "Research Documentation Photos",
+      "createdBy": "user_1790698420929_20ac4070",
+      "access": "everyone",
+      "allowedIds": [],
+      "createdAt": "2026-09-29T16:27:25.282Z",
+      "updatedAt": "2026-09-29T16:27:25.282Z"
+    },
+    {
+      "id": "folder_1790699304205_b53584a7",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "name": "Research Documents Templates",
+      "createdBy": "user_1790698420929_20ac4070",
+      "access": "everyone",
+      "allowedIds": [],
+      "createdAt": "2026-09-29T16:28:24.205Z",
+      "updatedAt": "2026-09-29T16:28:24.205Z"
+    }
+  ],
+  "files": [],
+  "notifications": [],
+  "activities": [
+    {
+      "id": "act_1790730030442_9db10375",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "deleted folder",
+      "target": "test1",
+      "time": "just now",
+      "createdAt": "2026-09-30T01:00:30.442Z",
+      "ref": {
+        "kind": "folder",
+        "id": "folder_1790730005108_973ad9ba"
+      }
+    },
+    {
+      "id": "act_1790730028221_b9a2a842",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "deleted folder",
+      "target": "test2",
+      "time": "just now",
+      "createdAt": "2026-09-30T01:00:28.221Z",
+      "ref": {
+        "kind": "folder",
+        "id": "folder_1790730008146_b58bce41"
+      }
+    },
+    {
+      "id": "act_1790730026217_8d52fa02",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "deleted folder",
+      "target": "test3",
+      "time": "just now",
+      "createdAt": "2026-09-30T01:00:26.217Z",
+      "ref": {
+        "kind": "folder",
+        "id": "folder_1790730010847_86e56948"
+      }
+    },
+    {
+      "id": "act_1790730010865_793f8fb6",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "created folder",
+      "target": "test3",
+      "time": "just now",
+      "createdAt": "2026-09-30T01:00:10.865Z",
+      "ref": {
+        "kind": "folder",
+        "id": "folder_1790730010847_86e56948"
+      }
+    },
+    {
+      "id": "act_1790730008157_8278e8c8",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "created folder",
+      "target": "test2",
+      "time": "just now",
+      "createdAt": "2026-09-30T01:00:08.157Z",
+      "ref": {
+        "kind": "folder",
+        "id": "folder_1790730008146_b58bce41"
+      }
+    },
+    {
+      "id": "act_1790730005124_c43e01a7",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "created folder",
+      "target": "test1",
+      "time": "just now",
+      "createdAt": "2026-09-30T01:00:05.124Z",
+      "ref": {
+        "kind": "folder",
+        "id": "folder_1790730005108_973ad9ba"
+      }
+    },
+    {
+      "id": "act_1790699304234_c08de9b6",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "created folder",
+      "target": "Research Documents Templates",
+      "time": "just now",
+      "createdAt": "2026-09-29T16:28:24.234Z",
+      "ref": {
+        "kind": "folder",
+        "id": "folder_1790699304205_b53584a7"
+      }
+    },
+    {
+      "id": "act_1790699275134_6dcab051",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "completed task",
+      "target": "Write introduction.",
+      "time": "just now",
+      "createdAt": "2026-09-29T16:27:55.134Z"
+    },
+    {
+      "id": "act_1790699275110_d11c8bb4",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "completed task",
+      "target": "Write introduction.",
+      "time": "just now",
+      "createdAt": "2026-09-29T16:27:55.110Z"
+    },
+    {
+      "id": "act_1790699259404_2099f775",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "cited source",
+      "target": "Stress Among Research Scholars: Causes, Coping Strategies and Implications for Policy Reform",
+      "time": "just now",
+      "createdAt": "2026-09-29T16:27:39.404Z"
+    },
+    {
+      "id": "act_1790699259113_2e389aee",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "uncited source",
+      "target": "Stress Among Research Scholars: Causes, Coping Strategies and Implications for Policy Reform",
+      "time": "just now",
+      "createdAt": "2026-09-29T16:27:39.113Z"
+    },
+    {
+      "id": "act_1790699245296_b3ec566e",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "created folder",
+      "target": "Research Documentation Photos",
+      "time": "just now",
+      "createdAt": "2026-09-29T16:27:25.296Z",
+      "ref": {
+        "kind": "folder",
+        "id": "folder_1790699245282_b0264c6d"
+      }
+    },
+    {
+      "id": "act_1790699145170_74b455d7",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "created task",
+      "target": "Write introduction.",
+      "time": "just now",
+      "createdAt": "2026-09-29T16:25:45.170Z"
+    },
+    {
+      "id": "act_1790699007513_54787695",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "added source",
+      "target": "Stress Among Research Scholars: Causes, Coping Strategies and Implications for Policy Reform",
+      "time": "just now",
+      "createdAt": "2026-09-29T16:23:27.513Z"
+    },
+    {
+      "id": "act_1790698932981_cf5bacf8",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "created chapter",
+      "target": "Chapter 1",
+      "time": "just now",
+      "createdAt": "2026-09-29T16:22:12.981Z"
+    },
+    {
+      "id": "act_1790698877123_c96bd23f",
+      "groupId": "grp_1790698716830_addf1a9a",
+      "memberId": "user_1790698420929_20ac4070",
+      "memberName": "Jules Indico",
+      "memberInitials": "JI",
+      "action": "created folder",
+      "target": "Documents",
+      "time": "just now",
+      "createdAt": "2026-09-29T16:21:17.123Z",
+      "ref": {
+        "kind": "folder",
+        "id": "folder_1790698877108_2f717eb2"
+      }
+    }
+  ]
+}
