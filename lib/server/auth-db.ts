@@ -1,5 +1,5 @@
 import crypto from "crypto"
-import { eq, and, desc, inArray } from "drizzle-orm"
+import { eq, and, desc, inArray, lt } from "drizzle-orm"
 import { db } from "./db"
 import { deleteBlob } from "./blob"
 import * as T from "./schema"
@@ -612,14 +612,9 @@ export async function createSession(userId: string): Promise<DbSession> {
   const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000
   const token = generateToken()
 
-  // Clean up any old expired sessions
+  // Clean up any old expired sessions (single conditional delete).
   const now = Date.now()
-  const stale = await db().select().from(T.sessions)
-  for (const s of stale) {
-    if (s.expiresAt <= now) {
-      await db().delete(T.sessions).where(eq(T.sessions.token, s.token))
-    }
-  }
+  await db().delete(T.sessions).where(lt(T.sessions.expiresAt, now + 1))
 
   const session: DbSession = {
     token,
@@ -844,21 +839,29 @@ export async function setUserProfile(
     if (composed !== previousName) {
       // Rename backfill: refresh name snapshots on this member's own groups
       // only — entries elsewhere (departed groups) keep their history.
+      // One select for the rosters, then a single bulk update.
       const groupRows = await db().select().from(T.groups)
-      for (const g of groupRows) {
-        const members = (g.members ?? []) as GroupMember[]
-        const onRoster =
-          g.ownerId === userId || members.some((m) => m.userId === userId)
-        if (!onRoster) continue
-        const acts = await db()
-          .select()
-          .from(T.activities)
-          .where(and(eq(T.activities.groupId, g.id), eq(T.activities.memberId, userId)))
-        for (const a of acts) {
+      const ownGroupIds = groupRows
+        .filter((g) => {
+          const members = (g.members ?? []) as GroupMember[]
+          return (
+            g.ownerId === userId || members.some((m) => m.userId === userId)
+          )
+        })
+        .map((g) => g.id)
+      if (ownGroupIds.length > 0) {
+        const actRows = await db().select().from(T.activities)
+        const hitIds = actRows
+          .filter(
+            (a) =>
+              a.memberId === userId && ownGroupIds.includes(a.groupId)
+          )
+          .map((a) => a.id)
+        if (hitIds.length > 0) {
           await db()
             .update(T.activities)
             .set({ memberName: composed, memberInitials: composedInitials })
-            .where(eq(T.activities.id, a.id))
+            .where(inArray(T.activities.id, hitIds))
         }
       }
     }
@@ -1193,21 +1196,18 @@ export async function markNotificationRead(
 
 export async function markAllNotificationsRead(userId: string): Promise<{ ok: true; count: number }> {
   const rows = await db()
-    .select()
+    .select({ id: T.notifications.id, readAt: T.notifications.readAt })
     .from(T.notifications)
     .where(eq(T.notifications.userId, userId))
-  const now = new Date().toISOString()
-  let count = 0
-  for (const r of rows) {
-    if (!r.readAt) {
-      await db()
-        .update(T.notifications)
-        .set({ readAt: now })
-        .where(eq(T.notifications.id, r.id))
-      count += 1
-    }
+  const unreadIds = rows.filter((r) => !r.readAt).map((r) => r.id)
+  if (unreadIds.length > 0) {
+    const now = new Date().toISOString()
+    await db()
+      .update(T.notifications)
+      .set({ readAt: now })
+      .where(inArray(T.notifications.id, unreadIds))
   }
-  return { ok: true, count }
+  return { ok: true, count: unreadIds.length }
 }
 
 function startOfDay(d: Date): Date {
@@ -1233,18 +1233,22 @@ export async function syncDeadlineNotifications(userId: string): Promise<void> {
   const hasRecord = (kind: NotificationKind, taskId: string) =>
     existing.some((n) => n.userId === userId && n.kind === kind && n.taskId === taskId)
   const resolveKind = async (kind: NotificationKind, taskId: string): Promise<boolean> => {
-    let changed = false
+    const hitIds = existing
+      .filter(
+        (n) =>
+          n.userId === userId && n.kind === kind && n.taskId === taskId && !n.readAt && n.id
+      )
+      .map((n) => n.id)
+    if (hitIds.length === 0) return false
+    const now = new Date().toISOString()
+    await db()
+      .update(T.notifications)
+      .set({ readAt: now })
+      .where(inArray(T.notifications.id, hitIds))
     for (const n of existing) {
-      if (n.userId === userId && n.kind === kind && n.taskId === taskId && !n.readAt) {
-        await db()
-          .update(T.notifications)
-          .set({ readAt: new Date().toISOString() })
-          .where(eq(T.notifications.id, n.id))
-        n.readAt = new Date().toISOString()
-        changed = true
-      }
+      if (hitIds.includes(n.id)) n.readAt = now
     }
-    return changed
+    return true
   }
   {
     const now = new Date().toISOString()
@@ -1292,21 +1296,24 @@ export async function syncDeadlineNotifications(userId: string): Promise<void> {
         await resolveKind("deadline_approaching", t.id)
       }
     }
-    // Tasks gone from the user's plate resolve all their deadline records.
-    for (const n of existing) {
-      if (
-        n.userId === userId &&
-        (n.kind === "deadline_approaching" || n.kind === "deadline_passed") &&
-        !n.readAt &&
-        n.taskId &&
-        !liveTaskIds.has(n.taskId) &&
-        n.id
-      ) {
-        await db()
-          .update(T.notifications)
-          .set({ readAt: now })
-          .where(eq(T.notifications.id, n.id))
-      }
+    // Tasks gone from the user's plate resolve all their deadline records
+    // in one bulk update.
+    const staleIds = existing
+      .filter(
+        (n) =>
+          n.userId === userId &&
+          (n.kind === "deadline_approaching" || n.kind === "deadline_passed") &&
+          !n.readAt &&
+          n.taskId &&
+          !liveTaskIds.has(n.taskId) &&
+          n.id
+      )
+      .map((n) => n.id)
+    if (staleIds.length > 0) {
+      await db()
+        .update(T.notifications)
+        .set({ readAt: now })
+        .where(inArray(T.notifications.id, staleIds))
     }
   }
 }
@@ -1444,6 +1451,8 @@ export async function getActiveGroupForUser(userId: string): Promise<{
   const userGroups = rows
     .map((r) => cleanRow(r) as unknown as ResearchGroup)
     .filter((g) => g.members.some((m) => m.userId === userId))
+  // One shared user map for every enrichment below (single users scan).
+  const userMap = await getUserMap()
 
   // If user has an explicit active group and is still a member:
   if (user.activeGroupId) {
@@ -1451,7 +1460,7 @@ export async function getActiveGroupForUser(userId: string): Promise<{
     if (matched) {
       return {
         activeGroupId: matched.id,
-        activeGroup: await enrichGroup(matched, userId),
+        activeGroup: await enrichGroup(matched, userId, userMap),
       }
     }
   }
@@ -1461,7 +1470,7 @@ export async function getActiveGroupForUser(userId: string): Promise<{
     const first = userGroups[0]
     return {
       activeGroupId: first.id,
-      activeGroup: await enrichGroup(first, userId),
+      activeGroup: await enrichGroup(first, userId, userMap),
     }
   }
 
@@ -1497,7 +1506,7 @@ export async function setActiveGroupForUser(
   return {
     ok: true,
     activeGroupId: groupId,
-    activeGroup: await enrichGroup(group, userId),
+    activeGroup: await enrichGroup(group, userId, await getUserMap()),
   }
 }
 
@@ -1554,17 +1563,19 @@ export async function deleteResearchGroup(
   const users = userRows.map((r) => cleanRow(r) as unknown as DbUser)
   const groupRows = await db().select().from(T.groups)
   const remaining = groupRows.map((r) => cleanRow(r) as unknown as ResearchGroup)
-  for (const user of users) {
-    if (user.activeGroupId === groupId) {
-      const remainingUserGroups = remaining.filter((g) =>
-        g.members.some((m) => m.userId === user.id)
-      )
-      await db()
-        .update(T.users)
-        .set({ activeGroupId: remainingUserGroups.length > 0 ? remainingUserGroups[0].id : null })
-        .where(eq(T.users.id, user.id))
-    }
-  }
+  await Promise.all(
+    users
+      .filter((user) => user.activeGroupId === groupId)
+      .map((user) => {
+        const remainingUserGroups = remaining.filter((g) =>
+          g.members.some((m) => m.userId === user.id)
+        )
+        return db()
+          .update(T.users)
+          .set({ activeGroupId: remainingUserGroups.length > 0 ? remainingUserGroups[0].id : null })
+          .where(eq(T.users.id, user.id))
+      })
+  )
 
   // Determine the new active group state for the requesting user
   const reassignment = await getActiveGroupForUser(requestingUserId)
@@ -1681,28 +1692,36 @@ export async function updateResearchGroup(
   }
   if (removeIds.length > 0) {
     group.members = group.members.filter((m) => !removeIds.includes(m.userId))
-    // Dropped members lose every "selected" grant in this group.
+    // Dropped members lose every "selected" grant in this group (batched
+    // per table — one round trip each, not one per item).
     const removed = new Set(removeIds)
     const [folderRows, fileRows] = await Promise.all([
       db().select().from(T.folders).where(eq(T.folders.groupId, group.id)),
       db().select().from(T.files).where(eq(T.files.groupId, group.id)),
     ])
+    const folderFixes: Promise<unknown>[] = []
     for (const f of folderRows) {
       const allowed = (f.allowedIds ?? []) as string[]
       if (!allowed.length) continue
       const kept = allowed.filter((id) => !removed.has(id))
       if (kept.length !== allowed.length) {
-        await db().update(T.folders).set({ allowedIds: kept }).where(eq(T.folders.id, f.id))
+        folderFixes.push(
+          db().update(T.folders).set({ allowedIds: kept }).where(eq(T.folders.id, f.id))
+        )
       }
     }
+    const fileFixes: Promise<unknown>[] = []
     for (const f of fileRows) {
       const allowed = (f.allowedIds ?? []) as string[]
       if (!allowed.length) continue
       const kept = allowed.filter((id) => !removed.has(id))
       if (kept.length !== allowed.length) {
-        await db().update(T.files).set({ allowedIds: kept }).where(eq(T.files.id, f.id))
+        fileFixes.push(
+          db().update(T.files).set({ allowedIds: kept }).where(eq(T.files.id, f.id))
+        )
       }
     }
+    await Promise.all([...folderFixes, ...fileFixes])
   }
 
   // Additions: same accepted-connections rule as group creation, checked
@@ -1713,8 +1732,10 @@ export async function updateResearchGroup(
   )
   if (addIds.length > 0) {
     const acceptedIds = await getAcceptedConnectionUserIds(requestingUserId)
+    const userRows = await db().select().from(T.users)
+    const byId = new Map(userRows.map((r) => [r.id, cleanRow(r) as unknown as DbUser]))
     for (const aid of addIds) {
-      const candidate = await findUserById(aid)
+      const candidate = byId.get(aid)
       if (!candidate) {
         return { ok: false, error: `User with ID ${aid} not found.`, status: 400 }
       }
@@ -1864,10 +1885,11 @@ export async function listJoinRequests(
   const leadership = await requireGroupLeader(groupId, userId)
   if (!leadership.ok) return leadership
   const reqRows = await db().select().from(T.joinRequests).where(eq(T.joinRequests.groupId, groupId))
+  const userMap = await getUserMap()
   const requests: EnrichedJoinRequest[] = []
   for (const r of reqRows) {
     if (r.status !== "pending") continue
-    const requester = await findUserById(r.userId)
+    const requester = userMap.get(r.userId)
     if (!requester) continue
     requests.push({ id: r.id, groupId: r.groupId, createdAt: r.createdAt, user: toPublicUser(requester) })
   }
@@ -2269,27 +2291,30 @@ export async function deleteGroupChapter(
   // Unlink the deleted chapter from sources instead of deleting them:
   // remove its ID from every chapterIds array in the same group.
   const sourceRows = await db().select().from(T.sources).where(eq(T.sources.groupId, groupId))
-  for (const s of sourceRows) {
-    const ids = (s.chapterIds ?? []) as string[]
-    if (Array.isArray(ids) && ids.includes(chapterId)) {
-      await db()
+  await Promise.all(
+    sourceRows.map((s) => {
+      const ids = (s.chapterIds ?? []) as string[]
+      if (!Array.isArray(ids) || !ids.includes(chapterId)) return Promise.resolve()
+      return db()
         .update(T.sources)
         .set({ chapterIds: ids.filter((id) => id !== chapterId), updatedAt: new Date().toISOString() })
         .where(eq(T.sources.id, s.id))
-    }
-  }
+    })
+  )
   // Same treatment for tasks (consistent with source-unlinking): clear the
   // chapter link so no task keeps a dangling chapterId or a stale chapter
   // name. Tasks become unattributed, exactly as if never assigned.
   const taskRows = await db().select().from(T.tasks).where(eq(T.tasks.groupId, groupId))
-  for (const t of taskRows) {
-    if (t.chapterId === chapterId) {
-      await db()
-        .update(T.tasks)
-        .set({ chapterId: null, chapter: "General", updatedAt: new Date().toISOString() })
-        .where(eq(T.tasks.id, t.id))
-    }
-  }
+  await Promise.all(
+    taskRows
+      .filter((t) => t.chapterId === chapterId)
+      .map((t) =>
+        db()
+          .update(T.tasks)
+          .set({ chapterId: null, chapter: "General", updatedAt: new Date().toISOString() })
+          .where(eq(T.tasks.id, t.id))
+      )
+  )
   return { ok: true }
 }
 
@@ -2458,8 +2483,10 @@ export async function updateGroupTask(
     .where(eq(T.tasks.id, taskId))
   // Any task change rolls up to its chapter(s): progress, counts, and the
   // "most recently updated" order all derive from attributed tasks.
-  await touchChapter(groupId, oldChapterId, task.updatedAt)
-  await touchChapter(groupId, task.chapterId, task.updatedAt)
+  await Promise.all([
+    touchChapter(groupId, oldChapterId, task.updatedAt),
+    touchChapter(groupId, task.chapterId, task.updatedAt),
+  ])
   if (reassigned && reassigned !== userId) {
     const group = membership.group
     const assigner = await findUserById(userId)
@@ -3063,6 +3090,7 @@ export async function mergeGroupFolders(
     .from(T.files)
     .where(and(eq(T.files.folderId, sourceId), eq(T.files.groupId, groupId)))
   let moved = 0
+  const moves: Promise<unknown>[] = []
   for (const row of sourceFiles) {
     const f = cleanRow(row) as unknown as DbFile
     let name = f.name
@@ -3075,12 +3103,15 @@ export async function mergeGroupFolders(
       name = `${stem} (${n})${ext}`
     }
     taken.add(name)
-    await db()
-      .update(T.files)
-      .set({ name, folderId: targetId })
-      .where(eq(T.files.id, f.id))
+    moves.push(
+      db()
+        .update(T.files)
+        .set({ name, folderId: targetId })
+        .where(eq(T.files.id, f.id))
+    )
     moved += 1
   }
+  await Promise.all(moves)
   await db()
     .delete(T.folders)
     .where(and(eq(T.folders.id, sourceId), eq(T.folders.groupId, groupId)))
@@ -3180,8 +3211,9 @@ export async function registerResearchFiles(
     allowedIds,
     createdAt: now,
   }))
-  for (const f of files) {
-    await db().insert(T.files).values({
+  // Single multi-row insert for all files.
+  await db().insert(T.files).values(
+    files.map((f) => ({
       id: f.id,
       groupId: f.groupId,
       folderId: f.folderId,
@@ -3194,8 +3226,8 @@ export async function registerResearchFiles(
       access: f.access,
       allowedIds: f.allowedIds,
       createdAt: f.createdAt,
-    })
-  }
+    }))
+  )
   for (const f of files) {
     await logGroupActivity(userId, groupId, {
       action: "uploaded file",
