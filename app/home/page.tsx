@@ -2282,7 +2282,7 @@ export default function HomePage() {
             <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <input
               id="home-search"
-              type="search"
+              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search chapters, tasks, sources…"
