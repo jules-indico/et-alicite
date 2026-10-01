@@ -996,8 +996,8 @@ function FolderCard({
     bind: (folder: DbFolder, draggable: boolean, variant?: "card" | "row") => {
       onPointerDown: (e: React.PointerEvent) => void
       onPointerMove: (e: React.PointerEvent) => void
-      onPointerUp: () => void
-      onPointerCancel: () => void
+      onPointerUp: (e: React.PointerEvent) => void
+      onPointerCancel: (e: React.PointerEvent) => void
     }
     consumeDragEnd: () => boolean
   }
@@ -1110,8 +1110,8 @@ function FolderRow({
     bind: (folder: DbFolder, draggable: boolean, variant?: "card" | "row") => {
       onPointerDown: (e: React.PointerEvent) => void
       onPointerMove: (e: React.PointerEvent) => void
-      onPointerUp: () => void
-      onPointerCancel: () => void
+      onPointerUp: (e: React.PointerEvent) => void
+      onPointerCancel: (e: React.PointerEvent) => void
     }
     consumeDragEnd: () => boolean
   }
@@ -1891,6 +1891,12 @@ export default function HomePage() {
         if (btn && !btn.hasAttribute("data-hold-drag")) return
         holdPos.current = { x: e.clientX, y: e.clientY }
         pressEl.current = e.currentTarget
+        // Suppress touch panning synchronously from press (no React
+        // round-trip): otherwise a drifting finger starts a page scroll
+        // during the hold window and the drag can never activate. If the
+        // gesture proves to be a scroll (moves past slop before the hold
+        // completes), clearHold hands panning straight back.
+        ;(e.currentTarget as HTMLElement).style.touchAction = "none"
         const rect = (e.currentTarget as Element).getBoundingClientRect()
         grabRef.current = {
           w: rect.width,
@@ -1937,11 +1943,17 @@ export default function HomePage() {
         const dy = e.clientY - holdPos.current.y
         if (dx * dx + dy * dy > 400) clearHold()
       },
-      onPointerUp: () => {
-        // Plain click (never lifted): leave native click to open the folder.
+      onPointerUp: (e: React.PointerEvent) => {
+        // A second finger lifting must not end the press/drag. With no
+        // active drag, any release is a plain click: leave native click to
+        // open the folder.
+        if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return
         clearHold()
       },
-      onPointerCancel: () => cancelDrag(),
+      onPointerCancel: (e: React.PointerEvent) => {
+        if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return
+        cancelDrag()
+      },
       onContextMenu: (e: React.MouseEvent) => {
         // Don't let the context menu interrupt a press-and-hold or drag.
         if (holdPos.current || dragSource) e.preventDefault()
