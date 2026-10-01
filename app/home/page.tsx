@@ -1944,10 +1944,14 @@ export default function HomePage() {
         if (dx * dx + dy * dy > 400) clearHold()
       },
       onPointerUp: (e: React.PointerEvent) => {
-        // A second finger lifting must not end the press/drag. With no
-        // active drag, any release is a plain click: leave native click to
-        // open the folder.
-        if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return
+        // A second finger lifting must not end the press/drag. While a
+        // drag is active the window pointerup owns release handling
+        // (merge + drag-end marking, which suppresses the follow-up
+        // click); otherwise this is a plain click and the hold resets.
+        if (activePointerId.current !== null) {
+          if (e.pointerId !== activePointerId.current) return
+          if (dragSource) return
+        }
         clearHold()
       },
       onPointerCancel: (e: React.PointerEvent) => {
