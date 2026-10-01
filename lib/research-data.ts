@@ -46,9 +46,21 @@ export const TASK_PAGE_SORT_SCOPES = [
 
 export type TaskPageSortScope = (typeof TASK_PAGE_SORT_SCOPES)[number]
 
-export type SortScope = ViewSectionKey | TaskPageSortScope
+/**
+ * Extra sort scopes for the chapter detail sections and the per-folder
+ * file list. Same pattern: one independent saved sort per control.
+ */
+export const EXTRA_SORT_SCOPES = [
+  "chapter-sources",
+  "chapter-tasks",
+  "folder-files",
+] as const
 
-export const SORT_SCOPES: SortScope[] = [...VIEW_SECTIONS, ...TASK_PAGE_SORT_SCOPES]
+export type ExtraSortScope = (typeof EXTRA_SORT_SCOPES)[number]
+
+export type SortScope = ViewSectionKey | TaskPageSortScope | ExtraSortScope
+
+export const SORT_SCOPES: SortScope[] = [...VIEW_SECTIONS, ...TASK_PAGE_SORT_SCOPES, ...EXTRA_SORT_SCOPES]
 
 export const members: Member[] = [
   { id: "m1", name: "Marian Bergado", initials: "MB", color: "bg-[oklch(0.58_0.16_260)]" },

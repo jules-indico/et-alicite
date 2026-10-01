@@ -9,7 +9,6 @@ import { ProjectHeader } from "@/components/project-header"
 import { ResearchWorkspace } from "@/components/research-workspace"
 import { NewChapterModal } from "@/components/home-modals"
 import { RemoveMemberDialog } from "@/components/remove-member-dialog"
-import { ChapterOpenDialog } from "@/components/chapter-open-dialog"
 import type { Chapter } from "@/lib/research-data"
 import {
   useActiveGroupId,
@@ -66,9 +65,6 @@ export default function ResearchPage() {
 
   // Item being edited (null = creating): same edit/delete flow as Home.
   const [editingChapter, setEditingChapter] = useState<Chapter | null>(null)
-
-  // Chapter clicked: confirm before opening its attachment (shared dialog).
-  const [pendingOpen, setPendingOpen] = useState<Chapter | null>(null)
 
   // Pending chapter delete awaiting confirmation (shared dialog).
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
@@ -183,7 +179,7 @@ export default function ResearchPage() {
           setChapterOpen(true)
         }}
         onDeleteChapter={(id) => requestDelete(id)}
-        onOpenChapter={(ch) => setPendingOpen(ch)}
+        onOpenChapter={(ch) => router.push(`/chapters/${ch.id}`)}
       />
 
       <NewChapterModal
@@ -194,17 +190,6 @@ export default function ResearchPage() {
         }}
         onCreate={handleCreateChapter}
         initial={editingChapter}
-      />
-
-      {/* Chapter open confirmation (shared dialog) */}
-      <ChapterOpenDialog
-        chapter={pendingOpen}
-        onClose={() => setPendingOpen(null)}
-        onAttach={(ch) => {
-          setPendingOpen(null)
-          setEditingChapter(ch)
-          setChapterOpen(true)
-        }}
       />
 
       {/* Chapter delete confirmation (shared dialog) */}

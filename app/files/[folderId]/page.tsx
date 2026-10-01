@@ -16,6 +16,7 @@ import {
   timeAgo,
 } from "@/lib/use-group-research"
 import { cn } from "@/lib/utils"
+import { useSectionSort } from "@/lib/use-section-view"
 import type { DbFolder, DbFile } from "@/lib/server/auth-db"
 import {
   ArrowDown,
@@ -69,6 +70,8 @@ const PAGE_SIZE = 50
 
 type SortKey = "name" | "date" | "size"
 
+const FOLDER_FILE_SORT_KEYS: readonly SortKey[] = ["name", "date", "size"]
+
 export default function FolderDetailPage() {
   const params = useParams()
   const rawId = params.folderId
@@ -83,8 +86,14 @@ export default function FolderDetailPage() {
 
   const [view, setView] = useState<"list" | "grid">("list")
   const [searchQuery, setSearchQuery] = useState("")
-  const [sortKey, setSortKey] = useState<SortKey>("date")
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
+  // Persisted per-user sort (same account mechanism as every other sort).
+  const [fileSort, setFileSort] = useSectionSort(
+    "folder-files",
+    { key: "date", dir: "desc" },
+    FOLDER_FILE_SORT_KEYS
+  )
+  const sortKey = fileSort.key as SortKey
+  const sortDir = fileSort.dir
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -176,11 +185,10 @@ export default function FolderDetailPage() {
   const visible = filtered.slice(0, visibleCount)
 
   function toggleSort(key: SortKey) {
-    if (key === sortKey) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+    if (key === fileSort.key) {
+      setFileSort({ key, dir: fileSort.dir === "asc" ? "desc" : "asc" })
     } else {
-      setSortKey(key)
-      setSortDir(key === "name" ? "asc" : "desc")
+      setFileSort({ key, dir: key === "name" ? "asc" : "desc" })
     }
   }
 

@@ -21,7 +21,6 @@ import {
   FileText,
   BookMarked,
   ChevronDown,
-  Upload,
   FilePlus2,
   X,
   Menu,
@@ -107,11 +106,10 @@ const sidebarSecondary: SidebarSecondaryItem[] = [
 // ─── "New" dropdown ──────────────────────────────────────────────────────────
 
 const newMenuItems = [
-  { icon: FilePlus2, label: "Create Research Activity", desc: "New chapter or section", id: "new-activity" },
-  { icon: Upload, label: "Import Research Paper", desc: "Upload or paste a paper", id: "new-import" },
+  { icon: FilePlus2, label: "New chapter or section", desc: "Create a research chapter", id: "new-chapter" },
   { icon: BookOpen, label: "Add Source / Citation", desc: "Cite a book, article, or URL", id: "new-source" },
   { icon: CheckSquare, label: "Create Task", desc: "Assign work to a team member", id: "new-task" },
-  { icon: Link2, label: "Add Annotation", desc: "Annotate an existing source", id: "new-annotation" },
+  { icon: FolderPlus, label: "New research folder", desc: "Organize files in folders", id: "new-folder" },
 ]
 
 // ─── Helper components ───────────────────────────────────────────────────────
@@ -141,11 +139,17 @@ function SidebarNavLink({
   )
 }
 
-function NewDropdown({ hideTaskOption }: { hideTaskOption?: boolean }) {
+function NewDropdown({
+  hideTaskOption,
+  onSelect,
+}: {
+  hideTaskOption?: boolean
+  /** Opens an existing creation dialog; the parent owns every modal. */
+  onSelect?: (id: string) => void
+}) {
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
-  const router = useRouter()
   // Shared anchor tracking: document coords on open (+ resize only).
   // Absolutely-positioned menus ride with the document — scrolling needs
   // no JS, so there is no lag and no snap-back.
@@ -179,21 +183,16 @@ function NewDropdown({ hideTaskOption }: { hideTaskOption?: boolean }) {
     onDismiss: () => setOpen(false),
   })
 
-  const destinations: Record<string, string> = {
-    "new-activity": "/research",
-    "new-import": "/sources",
-    "new-source": "/sources",
-    "new-task": "/tasks",
-    "new-annotation": "/sources",
-  }
-
   const menu = open && menuPos ? (
     <div
       ref={menuRef}
       role="menu"
       aria-label="Create new"
       style={{ top: menuPos.top, left: menuPos.left }}
-      className={`absolute ${Z.menu} w-64 origin-top-left overflow-hidden rounded-2xl border border-border bg-popover p-1.5 shadow-xl`}
+      // z-30, not Z.menu: this menu is anchored inside the z-30 sidebar,
+      // so it must paint above it (portal-at-body-end wins the tie). It
+      // never overlaps the top nav spatially — the sidebar starts below it.
+      className="absolute z-30 w-64 origin-top-left overflow-hidden rounded-2xl border border-border bg-popover p-1.5 shadow-xl"
     >
       {newMenuItems
         .filter((item) => !(hideTaskOption && item.id === "new-task"))
@@ -205,7 +204,7 @@ function NewDropdown({ hideTaskOption }: { hideTaskOption?: boolean }) {
           type="button"
           onClick={() => {
             setOpen(false)
-            router.push(destinations[item.id] ?? "/")
+            onSelect?.(item.id)
           }}
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-secondary"
         >
@@ -253,7 +252,6 @@ const FOLDER_LIST_GRID = "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_8rem_6rem_2.5r
 
 import { RowActionsMenu } from "@/components/row-actions-menu"
 import { RemoveMemberDialog } from "@/components/remove-member-dialog"
-import { ChapterOpenDialog } from "@/components/chapter-open-dialog"
 
 // ─── Chapter folder card & row ────────────────────────────────────────────────
 
@@ -1030,7 +1028,6 @@ function FolderCard({
       draggable={false}
       onDragStart={(e) => e.preventDefault()}
       {...(preview ? {} : dragHandlers)}
-      style={pressLocked ? { touchAction: "none" } : undefined}
       className={cn(
         "group relative flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md hover:ring-1 hover:ring-brand/25 cursor-pointer",
         isLifted && "opacity-60 scale-[0.98] cursor-grabbing",
@@ -1142,7 +1139,6 @@ function FolderRow({
       draggable={false}
       onDragStart={(e) => e.preventDefault()}
       {...(preview ? {} : dragHandlers)}
-      style={pressLocked ? { touchAction: "none" } : undefined}
       className={cn(
         "group flex sm:grid items-center gap-4 px-4 py-3 cursor-pointer transition-colors rounded-xl",
         FOLDER_LIST_GRID,
@@ -1431,9 +1427,6 @@ export default function HomePage() {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
-
-  // Chapter clicked: confirm before opening its attachment (shared dialog).
-  const [pendingOpen, setPendingOpen] = useState<Chapter | null>(null)
 
   function requestDelete(kind: "chapter" | "task" | "source" | "folder", id: string) {
     const name =
@@ -1828,6 +1821,10 @@ export default function HomePage() {
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const holdPos = useRef<{ x: number; y: number } | null>(null)
   const pressEl = useRef<Element | null>(null)
+  // Pointer currently driving a press/drag (touch pointer ids identify the
+  // finger; mouse/pen have their own). Guards against second-finger moves
+  // ending or steering someone else's drag.
+  const activePointerId = useRef<number | null>(null)
   const dragOverRef = useRef<string | null>(null)
   const dragEndAt = useRef(0)
   // Grab geometry for the floating preview: card rect + pointer offset
@@ -1843,7 +1840,14 @@ export default function HomePage() {
       holdTimer.current = null
     }
     holdPos.current = null
+    // Restore panning: the press element gets touch-action back whether a
+    // drag started or not (no-op when never suppressed).
+    const el = pressEl.current as HTMLElement | null
+    if (el && el.style.touchAction === "none") {
+      el.style.touchAction = ""
+    }
     pressEl.current = null
+    activePointerId.current = null
     setPressId(null)
   }
 
@@ -1901,6 +1905,15 @@ export default function HomePage() {
         holdTimer.current = setTimeout(() => {
           holdTimer.current = null
           holdPos.current = null
+          activePointerId.current = pointerId
+          // Suppress touch scrolling synchronously at lift time (before any
+          // move), so the browser can't steal the gesture mid-drag. Set
+          // directly on the element — no React round-trip — and only for
+          // the active drag; normal scrolling is untouched otherwise.
+          const pressed = pressEl.current as HTMLElement | null
+          if (pressed) {
+            pressed.style.touchAction = "none"
+          }
           // Capture so moves keep arriving even off-card (mouse + touch).
           try {
             pressEl.current?.setPointerCapture?.(pointerId)
@@ -1915,6 +1928,8 @@ export default function HomePage() {
         }, 400)
       },
       onPointerMove: (e: React.PointerEvent) => {
+        // Ignore other pointers (e.g. a second finger) entirely.
+        if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return
         pointerRef.current = { x: e.clientX, y: e.clientY }
         // Moved before the hold completed: a scroll/click gesture, not a lift.
         if (!holdPos.current || dragSource) return
@@ -1938,6 +1953,8 @@ export default function HomePage() {
     if (!dragSource) return
     const source = dragSource
     function onMove(e: PointerEvent) {
+      // Only the pointer driving this drag may steer it.
+      if (e.pointerId !== activePointerId.current) return
       pointerRef.current = { x: e.clientX, y: e.clientY }
       // One rAF-flushed position update per frame keeps the preview smooth.
       if (!rafId.current) {
@@ -1953,7 +1970,9 @@ export default function HomePage() {
       dragOverRef.current = over
       setDragOverId(over)
     }
-    function onUp() {
+    function onUp(e: PointerEvent) {
+      // A second finger lifting must not end someone else's drag.
+      if (e.pointerId !== activePointerId.current) return
       const over = dragOverRef.current
       cancelDrag()
       if (over) {
@@ -1964,15 +1983,23 @@ export default function HomePage() {
         setMergeTargetId(over)
       }
     }
+    function onCancel(e: PointerEvent) {
+      // Browser took the gesture back (multi-touch, alert, etc.): always
+      // reset so no press/drag state can stick.
+      if (e.pointerId !== activePointerId.current) return
+      cancelDrag()
+    }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") cancelDrag()
     }
     window.addEventListener("pointermove", onMove)
     window.addEventListener("pointerup", onUp)
+    window.addEventListener("pointercancel", onCancel)
     window.addEventListener("keydown", onKey)
     return () => {
       window.removeEventListener("pointermove", onMove)
       window.removeEventListener("pointerup", onUp)
+      window.removeEventListener("pointercancel", onCancel)
       window.removeEventListener("keydown", onKey)
     }
   }, [dragSource])
@@ -2189,7 +2216,15 @@ export default function HomePage() {
           <div className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
             {/* New button */}
             <div className="mb-3">
-              <NewDropdown hideTaskOption={!isLeader} />
+              <NewDropdown
+                hideTaskOption={!isLeader}
+                onSelect={(id) => {
+                  if (id === "new-chapter") setCreateChapterOpen(true)
+                  else if (id === "new-source") setCreateSourceOpen(true)
+                  else if (id === "new-task") setCreateTaskOpen(true)
+                  else if (id === "new-folder") setCreateFolderOpen(true)
+                }}
+              />
             </div>
 
             {/* Main nav */}
@@ -2241,22 +2276,25 @@ export default function HomePage() {
             />
 
             {/* Team avatars - uses real active group members */}
-            <div className="mt-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
-              {activeGroup ? (
-                <>
-                  <p className="mb-2 text-xs font-semibold text-muted-foreground">
-                    {activeGroup.name}
-                  </p>
-                  <AvatarStack people={groupMembers} max={5} />
-                  <p className="mt-2 text-xs text-muted-foreground">{groupMembers.length} member{groupMembers.length === 1 ? "" : "s"}</p>
-                </>
-              ) : (
-                <>
-                  <p className="mb-1 text-xs font-semibold text-muted-foreground">Research Team</p>
-                  <p className="text-[0.68rem] text-muted-foreground">No active group selected.</p>
-                </>
-              )}
-            </div>
+            {activeGroup ? (
+              <Link
+                href="/team"
+                title="View team"
+                aria-label="View team"
+                className="mt-3 block rounded-2xl border border-border bg-card px-4 py-3 shadow-sm transition-colors hover:bg-secondary/40"
+              >
+                <p className="mb-2 text-xs font-semibold text-muted-foreground">
+                  {activeGroup.name}
+                </p>
+                <AvatarStack people={groupMembers} max={5} />
+                <p className="mt-2 text-xs text-muted-foreground">{groupMembers.length} member{groupMembers.length === 1 ? "" : "s"}</p>
+              </Link>
+            ) : (
+              <div className="mt-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+                <p className="mb-1 text-xs font-semibold text-muted-foreground">Research Team</p>
+                <p className="text-[0.68rem] text-muted-foreground">No active group selected.</p>
+              </div>
+            )}
           </div>
         </aside>
 
@@ -2616,7 +2654,7 @@ export default function HomePage() {
                               key={chapter.id}
                               chapter={chapter}
                               tasks={taskList}
-                              onOpen={(ch) => setPendingOpen(ch)}
+                              onOpen={(ch) => router.push(`/chapters/${ch.id}`)}
                               onDelete={(id) => requestDelete("chapter", id)}
                               onEdit={(ch) => {
                                 setEditingChapter(ch)
@@ -2665,7 +2703,7 @@ export default function HomePage() {
                                 key={chapter.id}
                                 chapter={chapter}
                                 tasks={taskList}
-                                onOpen={(ch) => setPendingOpen(ch)}
+                                onOpen={(ch) => router.push(`/chapters/${ch.id}`)}
                                 onDelete={(id) => requestDelete("chapter", id)}
                                 onEdit={(ch) => {
                                   setEditingChapter(ch)
@@ -3169,17 +3207,6 @@ export default function HomePage() {
           onClose={() => setCreateGroupModalOpen(false)}
           collaborators={acceptedCollaborators}
           onCreated={handleGroupCreated}
-        />
-
-        {/* Chapter open confirmation (shared dialog) */}
-        <ChapterOpenDialog
-          chapter={pendingOpen}
-          onClose={() => setPendingOpen(null)}
-          onAttach={(ch) => {
-            setPendingOpen(null)
-            setEditingChapter(ch)
-            setCreateChapterOpen(true)
-          }}
         />
 
         {/* Share dialog (leader-only invite link, same dialog pattern) */}
