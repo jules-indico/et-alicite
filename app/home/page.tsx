@@ -150,14 +150,14 @@ function NewDropdown({
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
-  // Shared anchor tracking: document coords on open (+ resize only).
-  // Absolutely-positioned menus ride with the document — scrolling needs
-  // no JS, so there is no lag and no snap-back.
+  // Shared anchor tracking: the trigger lives in the fixed sidebar, so
+  // fixed-mode viewport coords keep the menu glued with zero scroll JS.
   const menuPos = useAnchorPosition({
     anchorRef: btnRef,
     open,
     width: 256,
     gap: 8,
+    fixed: true,
   })
 
   function openMenu() {
@@ -192,7 +192,8 @@ function NewDropdown({
       // z-30, not Z.menu: this menu is anchored inside the z-30 sidebar,
       // so it must paint above it (portal-at-body-end wins the tie). It
       // never overlaps the top nav spatially — the sidebar starts below it.
-      className="absolute z-30 w-64 origin-top-left overflow-hidden rounded-2xl border border-border bg-popover p-1.5 shadow-xl"
+      // fixed (not absolute): the trigger never scrolls, so neither does this.
+      className="fixed z-30 w-64 origin-top-left overflow-hidden rounded-2xl border border-border bg-popover p-1.5 shadow-xl"
     >
       {newMenuItems
         .filter((item) => !(hideTaskOption && item.id === "new-task"))

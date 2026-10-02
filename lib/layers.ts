@@ -31,16 +31,19 @@ export type AnchorRect = { right: number; bottom: number; left: number }
 
 export function computeMenuPos(
   rect: AnchorRect | null,
-  opts: { width: number; gap?: number; scrollX?: number; scrollY?: number }
+  opts: { width: number; gap?: number; scrollX?: number; scrollY?: number; fixed?: boolean }
 ): { top: number; left: number } | null {
   if (!rect) return null
-  // Document coords (position:absolute portaled to body): the menu rides
-  // with the document on the compositor thread, so scrolling needs no JS
-  // at all. Viewport coords must NEVER be paired with position:fixed here,
-  // and scroll offsets must NEVER be paired with it either — both mismatch
-  // variants caused the old lag-then-snap behavior.
-  const scrollX = opts.scrollX ?? (typeof window !== "undefined" ? window.scrollX : 0)
-  const scrollY = opts.scrollY ?? (typeof window !== "undefined" ? window.scrollY : 0)
+  // Two modes, and they must never be mixed:
+  // - document coords + position:absolute (portaled to body): the menu rides
+  //   with the document on the compositor thread — for triggers that scroll
+  //   with the page. Scrolling needs no JS at all: no lag, no snap.
+  // - viewport coords + position:fixed: the menu never moves — for triggers
+  //   that are themselves fixed (e.g. inside the fixed sidebar). Also needs
+  //   no JS on scroll. Pairing document coords with a fixed trigger (or
+  //   viewport coords with an absolute menu) makes the menu drift.
+  const scrollX = opts.fixed ? 0 : (opts.scrollX ?? (typeof window !== "undefined" ? window.scrollX : 0))
+  const scrollY = opts.fixed ? 0 : (opts.scrollY ?? (typeof window !== "undefined" ? window.scrollY : 0))
   return {
     top: rect.bottom + scrollY + (opts.gap ?? 6),
     left: Math.max(8, rect.right - opts.width + scrollX),
@@ -49,21 +52,22 @@ export function computeMenuPos(
 
 /**
  * Shared anchor tracking for EVERY JS-positioned floating menu
- * (row ⋮ menus, the Home New-item menu). Computes document coordinates on
- * open and recomputes on window resize only. Scrolling needs no updates:
- * absolutely-positioned menus move with the document itself, so the menu
- * stays glued to its trigger with zero main-thread work — no lag, no snap.
+ * (row ⋮ menus, the Home New-item menu). Computes coordinates on open and
+ * recomputes on window resize only. Pass `fixed: true` (with a `fixed`
+ * class on the menu) when the trigger itself never moves with page scroll.
  */
 export function useAnchorPosition({
   anchorRef,
   open,
   width,
   gap,
+  fixed = false,
 }: {
   anchorRef: RefObject<HTMLElement | null>
   open: boolean
   width: number
   gap?: number
+  fixed?: boolean
 }): { top: number; left: number } | null {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
 
@@ -74,12 +78,12 @@ export function useAnchorPosition({
     }
     const place = () =>
       setPos(
-        computeMenuPos(anchorRef.current?.getBoundingClientRect() ?? null, { width, gap })
+        computeMenuPos(anchorRef.current?.getBoundingClientRect() ?? null, { width, gap, fixed })
       )
     place()
     window.addEventListener("resize", place)
     return () => window.removeEventListener("resize", place)
-  }, [open, width, gap, anchorRef])
+  }, [open, width, gap, fixed, anchorRef])
 
   return pos
 }
