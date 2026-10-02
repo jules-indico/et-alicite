@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Sparkles, Mail, Lock, User, Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react"
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
 
@@ -148,9 +148,11 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-3">
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-lavender text-white shadow-lg shadow-brand/30">
-              <Sparkles className="size-6 fill-current" strokeWidth={1.5} aria-hidden="true" />
-            </span>
+            <img
+              src="/icon-512.png"
+              alt="et-alicite logo"
+              className="size-12 rounded-2xl object-cover shadow-lg shadow-brand/30"
+            />
           </Link>
           <div className="text-center">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">

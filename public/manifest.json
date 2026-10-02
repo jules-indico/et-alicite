@@ -1,0 +1,21 @@
+{
+  "name": "et-alicite — Research workspace for student teams",
+  "short_name": "et-alicite",
+  "description": "Organize research chapters, manage academic sources and citations, assign tasks, and collaborate with your research group.",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#eef2fb",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

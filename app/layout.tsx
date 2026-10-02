@@ -23,18 +23,12 @@ export const metadata: Metadata = {
   description:
     'Organize research chapters, manage academic sources and citations, assign tasks, and collaborate with your research group — with an AI research guide alongside you.',
   generator: 'v0.app',
-  openGraph: {
-    siteName: 'et-alicite',
-  },
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
+        url: '/favicon.png',
+        sizes: '48x48',
+        type: 'image/png',
       },
       {
         url: '/icon.svg',
@@ -42,6 +36,22 @@ export const metadata: Metadata = {
       },
     ],
     apple: '/apple-icon.png',
+  },
+  manifest: '/manifest.json',
+  openGraph: {
+    siteName: 'et-alicite',
+    images: [
+      {
+        url: 'https://et-alicite.vercel.app/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'et-alicite — Research workspace for student teams',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: ['https://et-alicite.vercel.app/og-image.png'],
   },
 }
 

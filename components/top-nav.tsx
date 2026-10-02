@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { Z } from "@/lib/layers"
 import { BrandMark } from "@/components/primitives"
 import { SettingsMenu } from "@/components/settings-menu"
-import { Search, Sparkles, Bell } from "lucide-react"
+import { Search, Bell } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { onNotificationsUpdated } from "@/lib/notifications"
 
@@ -97,9 +97,11 @@ export function TopNav({
     <header className={`sticky top-0 ${Z.topNav} border-b border-border/70 bg-background/80 backdrop-blur-xl`}>
       <div className="flex h-16 items-center gap-4 px-4 sm:px-6">
         <Link href="/home" className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-brand to-lavender text-white shadow-sm">
-            <Sparkles className="size-4 fill-current" strokeWidth={1.5} aria-hidden="true" />
-          </span>
+          <img
+            src="/icon-192.png"
+            alt="et-alicite logo"
+            className="size-8 rounded-xl object-cover shadow-sm"
+          />
           <span className="text-base font-semibold tracking-tight text-foreground">et-alicite</span>
         </Link>
 
