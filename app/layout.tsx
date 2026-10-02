@@ -23,6 +23,9 @@ export const metadata: Metadata = {
   description:
     'Organize research chapters, manage academic sources and citations, assign tasks, and collaborate with your research group — with an AI research guide alongside you.',
   generator: 'v0.app',
+  openGraph: {
+    siteName: 'et-alicite',
+  },
   icons: {
     icon: [
       {
@@ -56,6 +59,17 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${newsreader.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: 'et-alicite',
+              url: 'https://et-alicite.vercel.app/',
+            }),
+          }}
+        />
       </head>
       <body className="font-sans antialiased">
         <ThemeProvider>
