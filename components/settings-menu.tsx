@@ -8,7 +8,8 @@ import { useAuth } from "@/lib/auth-context"
 import { useDismissOnOutsideClick } from "@/lib/use-dismiss"
 import { Z } from "@/lib/layers"
 import { RemoveMemberDialog } from "@/components/remove-member-dialog"
-import { Settings, UserCircle, Info, Sun, Moon, LogOut } from "lucide-react"
+import { UserCircle, Info, Sun, Moon, LogOut, Settings } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export function SettingsMenu() {
   const [open, setOpen] = useState(false)
@@ -16,7 +17,7 @@ export function SettingsMenu() {
   const [signingOut, setSigningOut] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const { theme, toggleTheme } = useTheme()
-  const { signOut } = useAuth()
+  const { currentUser, signOut } = useAuth()
   const router = useRouter()
 
   async function handleSignOut() {
@@ -56,18 +57,48 @@ export function SettingsMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Settings"
-        className="flex size-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:text-foreground"
+        aria-label={currentUser ? `Your menu: ${currentUser.name}` : "Your menu"}
+        title={currentUser?.name}
+        className={cn(
+          "flex size-9 items-center justify-center overflow-hidden rounded-full text-xs font-semibold text-white shadow-sm ring-2 ring-transparent transition-all hover:ring-brand/40",
+          currentUser?.avatarUrl
+            ? "border border-border bg-card"
+            : (currentUser?.color ?? "bg-brand"),
+        )}
       >
-        <Settings className="size-4" aria-hidden="true" />
+        {currentUser?.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={currentUser.avatarUrl} alt="" className="size-full object-cover" />
+        ) : currentUser ? (
+          currentUser.initials
+        ) : (
+          <UserCircle className="size-4 text-muted-foreground" aria-hidden="true" />
+        )}
       </button>
 
       {open && (
         <div
           role="menu"
-          aria-label="Settings"
+          aria-label="Your menu"
           className={`absolute right-0 ${Z.menu} mt-2 w-60 origin-top-right overflow-hidden rounded-2xl border border-border bg-popover p-1.5 shadow-xl`}
         >
+          {currentUser && (
+            <Link
+              href={`/users/${currentUser.id}`}
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-secondary"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-brand">
+                <UserCircle className="size-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-foreground">Account</span>
+                <span className="block text-xs text-muted-foreground">View your profile</span>
+              </span>
+            </Link>
+          )}
+
           <Link
             href="/account"
             role="menuitem"
@@ -75,11 +106,11 @@ export function SettingsMenu() {
             className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-secondary"
           >
             <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-brand">
-              <UserCircle className="size-4" aria-hidden="true" />
+              <Settings className="size-4" aria-hidden="true" />
             </span>
             <span className="min-w-0">
-              <span className="block text-sm font-medium text-foreground">Account</span>
-              <span className="block text-xs text-muted-foreground">View your profile</span>
+              <span className="block text-sm font-medium text-foreground">Settings</span>
+              <span className="block text-xs text-muted-foreground">Manage your account</span>
             </span>
           </Link>
 

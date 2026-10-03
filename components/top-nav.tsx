@@ -179,26 +179,6 @@ export function TopNav({
           </Link>
 
           <SettingsMenu />
-
-          {/* Current user avatar → own public profile (Account stays under Settings). */}
-          {currentUser && (
-            <Link
-              href={`/users/${currentUser.id}`}
-              aria-label={`Your public profile: ${currentUser.name}`}
-              className={cn(
-                "flex size-9 items-center justify-center overflow-hidden rounded-full text-xs font-semibold text-white shadow-sm ring-2 ring-transparent transition-all hover:ring-brand/40",
-                !currentUser.avatarUrl && currentUser.color,
-              )}
-              title={currentUser.name}
-            >
-              {currentUser.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={currentUser.avatarUrl} alt="" className="size-full object-cover" />
-              ) : (
-                currentUser.initials
-              )}
-            </Link>
-          )}
         </div>
       </div>
 
