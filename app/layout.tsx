@@ -19,7 +19,7 @@ const newsreader = Newsreader({
 })
 
 export const metadata: Metadata = {
-  title: 'et-alicite — Research workspace for student teams',
+  title: 'et-alicite | A Place to Organize, Manage, and Collaborate on Research',
   description:
     'Organize research chapters, manage academic sources and citations, assign tasks, and collaborate with your research group — with an AI research guide alongside you.',
   generator: 'v0.app',
